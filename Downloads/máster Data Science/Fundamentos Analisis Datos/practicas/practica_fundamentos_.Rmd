@@ -1,0 +1,231 @@
+---
+title: "practica_estadistica"
+author: "Juanma Saavedra"
+date: "10/19/2019"
+output: pdf_document
+---
+```
+library(PASWR2)
+datos<-BATTERY
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(PASWR2)
+datos<-BATTERY
+```
+
+
+```{r cars}
+summary(datos)
+```
+Actividad 1
+
+• Realiza un histograma de todas las filas de la variable lifetime y comprueba que efectivamente nos interesa separar los datos.
+```{r}
+hist(datos$lifetime, col="purple")
+```
+Se diría que son mediciones independientes, cada tipo de batería con un mínimo y un máximo de duración diferentes. Y por tanto, una mediana, media,..etc diferentes.
+```{r}
+densityplot(datos$lifetime)
+```
+
+
+• Crea dos conjuntos de datos diferentes para los dos tipos de baterías, por ejemplo datosA y datosB.
+```{r}
+datosA<-filter(datos, facility == "A")
+datosB<-filter(datos, facility == "B")
+print(datosA)
+print(datosB)
+```
+
+
+
+• Realiza ahora un histograma de cada uno de los tipos y comenta si te parece que los datos siguen una distribucion normal
+
+```{r}
+hist(datosA$lifetime)
+hist(datosB$lifetime)
+```
+Efectivamente, ambos histogramos parece que siguen una distribución normal.
+Los datos más frecuente se concentran en el centro y luego por los lados, la frecuencia de las mediciones más extremas van disminuyendo, formando una "campaña" gaussiana, en ambos casos.
+
+
+• Confirma tus conclusiones con alguna/s de las herramientas vistas en clase (test de normalidad, gráfico Quantil-Quantil, tests de normalidad, . . . )
+```{r}
+
+library(scales)
+# Comprobación normalidad datosA
+qqnorm(datosA$lifetime, pch = 20, col = 'red', las = 1)
+grid()
+qqline(datosA$lifetime, lwd = 2)
+
+shapiro.test(datosA$lifetime)
+ad.test(datosA$lifetime)
+
+shapiro.test(datosB$lifetime)
+ad.test(datosB$lifetime)
+
+```
+Si tomamos como hipótesis nula que los datos son normales y asumimos un intervalo de confianza del 95%, por el valor que toma p en ambos test, no podemos rechazar que las variables lifetime de ambos tipos de batería, sigan una distribución normal, dado que el valor de p es muy superior al 5%.
+
+
+Actividad 2
+
+Ahora que sabemos que nuestros datos siguen aproximadamente una distribución normal, tendríamos que estimar sus parámetros μ y σ. A partir de ahí, podemos realizar cálculo de probabilidades de la normal.
+• Realiza una estimación puntual de la media y la desviación típica de la población de cada tipo de baterías1 .
+
+```{r}
+datosA %>%
+  summarise(mediaA=mean(lifetime),sdA=sd(lifetime))
+
+datosB %>%
+  summarise(mediaB=mean(lifetime), sdB=sd(lifetime))
+```
+
+
+• Calcula la probabilidad de que una batería tomada al azar del tipo A dure más de 210 horas
+```{r}
+#Se busca P(X>210)
+pnorm(q = 210, mean = 200.5087, sd = 2.745777, lower.tail = FALSE)
+```
+
+
+• Calcula la probabilidad de que una batería tomada al azar del tipo B dure menos de 175 horas
+```{r}
+#Se busca la probabiliad de P(X<=175), por esa razón lower.tail = TRUE
+pnorm(q = 175, mean = 179.6805, sd = 2.084977, lower.tail = TRUE)
+```
+
+
+
+• Encuentra cuál es la duración máxima del 3% de las pilas del tipo B que duran menos (ayuda: esto es equivalente a encontrar el cuantil 0.03 de la distribución)
+```{r}
+qnorm(p=0.03, mean = 179.6805, sd = 2.084977)
+quantile(datosB$lifetime, probs=0.03)
+```
+
+
+
+Actividad 3
+
+Vamos a centrarnos ahora en las baterías de tipo B. Supongamos que una duración por debajo de 175 horas no es aceptable para el usuario de la batería. En la actividad anterior hemos calculado la probabilidad p de que esto suceda. Entonces, si tomamos una batería del tipo B al azar y comprobamos si dura menos de 175 horas, estamos realizando un experimento de Bernoulli con probabilidad p.
+
+
+• Calcula la probabilidad de que en un lote de 10 baterías, no haya ninguna defectuosa (ayuda: distribución binomial).
+```{r}
+#0->fracaso
+#1->éxito: encontrar batería defectuosa
+# p será la probabilidad de que una pila elegida al azar sea defectuosa
+p <- pnorm(q = 175, mean = 179.6805, sd = 2.084977, lower.tail = TRUE)
+pbinom(0, 10, p)
+print(1)
+dbinom(x = 0, size = 10, prob = p)
+```
+
+
+• Imagina que las baterías se fabrican en serie e independientemente. ¿Cuál es la probabilidad de que la batería producida en quinto lugar sea la primera defectuosa? (ayuda: distribución geométrica.)
+```{r}
+# p será la probabilidad de que una pila elegida al azar sea defectuosa
+p <- pnorm(q = 175, mean = 179.6805, sd = 2.084977, lower.tail = TRUE)
+#La probabilidad de que una batería elegida al azár NO sea defectuosa es 1-p
+#P(X>4)->1-P(X<=4)
+pgeom(q = 4, prob = 1-p, lower.tail = FALSE)
+dgeom(4, p)
+```
+
+• Supongamos que en una caja de 20 baterías van 3 defectuosas. ¿Cuál es la probabilidad de que al tomar una muestra sin reposición de 5 baterías al menos una sea defectuosa? (ayuda: distribución hipergeométrica)
+```{r}
+dhyper(x = 1, m = 3, k = 5, n = 20-3)
+phyper(0, 3, 20-3, 5, lower.tail = FALSE)
+
+```
+
+
+Actividad 4
+
+Seguimos con las baterías de tipo B, pero en vez de hacer experimentos de Bernoulli queremos estudiar el número de baterías defectuosas fabricadas cada día. Supongamos que se fabrican 1000 baterías cada día. Entonces, cada día en promedio se estarán produciendo aproximadamente 1000 × p baterías, y el número de baterías defectuosas por día sigue una distribución de Poisson. Tomemos 12 como ese promedio de baterías defectuosas cada día. (ayuda: repasa qué modelo de distribución modeliza estos recuentos de eventos raros con una tasa media por unidad de tiempo)
+• ¿Cuál es la probabilidad de que un día se produzcan más de 20 baterías defectuosas?
+```{r}
+#P(X>20)->1-P(X<=19)
+1-ppois(q = 19, lambda = 12)
+
+```
+
+• ¿Cuál es la probabilidad de que un día no salga ninguna batería defectuosa de la fábrica?
+```{r}
+ppois(q = 0, lambda = 12)
+dpois(0, lambda = 12)
+```
+
+
+• La fábrica funciona de lunes a viernes. ¿Qué distribución sigue el número de baterías defectuosas por semana? Justifica qué propiedad se aplica.
+
+La suma de variables aleatorias de Poisson independientes es otra variable aleatoria de Poisson cuyo parámetro es la suma de los parámetros de las originales. 
+
+Dicho de otra manera, sisuponemos un promedio de pilas defectuoas de 12 al día y nos preguntamos qué distribución sigue el número de baterias defectuosas por semana, según la propiedad aditiva de Poisson, podríamos decir que sigue una distribución de Poisson, donde lambda fuera la suma de los parámetros de las variables aletorias de lunes a viernes, con valor 12+12+12+12+12 (60)
+
+
+```{r}
+#Si nos preguntamos como ejemplo, ¿¿Cuál es la probabilidad de que en una semana se produzcan más de 68 baterías defectuosa, el resutlado sería..
+1-ppois(q = 67, lambda = 60)
+densityplot(rpois(5000, 60))
+```
+
+Actividad 5
+
+El departamento de I+D de la empresa que fabrica las baterías tipo B está investigando nuevos materiales y métodos para mejorar la vida útil de las baterías. En particular, quieren llegar a diseñar una batería cuya duración siga una distribución de Weibull con parámetros a = 100 y b = 185.
+• Realiza una simulación de la producción semanal de baterías (recuerda: 5 días de produccción, a 1000 baterías por día). Guarda los datos en un vector
+
+```{r}
+#Simulamos una semana de fabricación con el nuevo proceso
+datosC<-rweibull(5000, shape = 100, scale = 185)
+print(datosC)
+```
+
+
+• Con este nuevo proceso, ¿se mejora realmente la duración media de las baterías? (ayuda: puedes usar los datos simulados o la expresión de la esperanza de una Weibull)
+```{r}
+#Si usamos los datos simulados y los comparamos con la simulación de datos anterior, vemos que la media es ligeramente superior, a favor del nuevo proceso de fabricación
+summary(datosB$lifetime)
+summary(datosC)
+
+#Si usamos la expresión de la esperanza de Weibull, todavía es más favorable a favor del nuevo proceso
+print(185*(1+(1/100)))
+```
+
+• Los ingenieros no lo tienen muy claro (parece que la diferencia no es tanta en promedio y los nuevos materiales son costosos). Para demostrarles que merece la pena, calcula la proporción de baterías defectuosas que producirá probablemente el nuevo proceso y compárala con el anterior (la p que calculamos en la actividad 2)
+```{r}
+#sd de la simulación datosC según el nuevo proceso de fabricación
+pnorm(q = 175, mean = 183.9, sd = sd(datosC), lower.tail = TRUE)
+
+```
+Conocida la probabilidad de que una bateria B ver2 sea defectuosa es de 8.054889e-05, se puede calcular la probabilidad de que en un lote de 1000 baterías, NO exista una defectuosa, frente al proceso de fabricación anterior
+
+```{r}
+#Probabiliad que en un lote de 1000, NO exista una batería defectuosa, según nuevo proceo de fabriación, (p se calcula en la pregunta inmediatamente anterior)
+pbinom(0,1000,8.054889e-05)
+#Misma probabilidad, pero según el proceso de fabricación anterior
+pbinom(0,1000,0.01238828)
+
+```
+A tenor de los datos obtenidos, e
+
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
